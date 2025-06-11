@@ -1,0 +1,434 @@
+{
+  "name": "rag-chatbot-workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "triggerOn": "specificFolder",
+        "folderToWatch": {
+          "__rl": true,
+          "value": "1NJkHG5vn1GSJBx_EgMmUQOtcSErQl6LZ",
+          "mode": "list",
+          "cachedResultName": "university",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/1NJkHG5vn1GSJBx_EgMmUQOtcSErQl6LZ"
+        },
+        "event": "fileCreated",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDriveTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "743400c2-a2b5-4aa5-bb89-a4e81eac6c05",
+      "name": "Google Drive Trigger",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "4SFwFtffDQHaGvY2",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.id }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        220,
+        0
+      ],
+      "id": "7b9d07f4-7acf-4cb7-8ec7-930edfbb4b4d",
+      "name": "Google Drive",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "4SFwFtffDQHaGvY2",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "dataType": "binary",
+        "options": {
+          "metadata": {
+            "metadataValues": [
+              {
+                "name": "file",
+                "value": "={{ $json.name }}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1,
+      "position": [
+        560,
+        260
+      ],
+      "id": "ad3c4a86-9acc-432a-9234-4835d616bef0",
+      "name": "Default Data Loader"
+    },
+    {
+      "parameters": {
+        "chunkSize": 500,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.textSplitterRecursiveCharacterTextSplitter",
+      "typeVersion": 1,
+      "position": [
+        680,
+        440
+      ],
+      "id": "0d564873-e6d2-4902-a074-dd16ecde6e11",
+      "name": "Recursive Character Text Splitter"
+    },
+    {
+      "parameters": {
+        "modelName": "models/embedding-001"
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        440,
+        260
+      ],
+      "id": "7881e7e1-4da2-465a-9d0f-97da0920313a",
+      "name": "Embeddings Google Gemini",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "NM1IPSx63x7C9hRp",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "pineconeIndex": {
+          "__rl": true,
+          "value": "n8n-gemini",
+          "mode": "list",
+          "cachedResultName": "n8n-gemini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStorePinecone",
+      "typeVersion": 1.2,
+      "position": [
+        680,
+        71.294284240867
+      ],
+      "id": "43a7248b-d4c7-46f8-92cc-25881eed82d5",
+      "name": "Pinecone Vector Store",
+      "credentials": {
+        "pineconeApi": {
+          "id": "60fPgTJWuiis8FAu",
+          "name": "PineconeApi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        780
+      ],
+      "id": "0e0db876-3cac-4c76-a538-ccf8ba54ff6a",
+      "name": "When chat message received",
+      "webhookId": "922e1598-3f29-4a7c-b79e-4f371fdd92bc"
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "You are a helpful and professional university information assistant. You specialize in answering questions related to a wide range of university services and student concerns, based on an internal FAQ document.\n\nThe document you have access to includes categorized question-and-answer information on the following topics:\n\n1. Admissions & Application — such as deadlines, application platforms, GPA requirements, SAT/ACT, international applicant documents, deferrals, and early decision options.\n2. Academics — such as average class size, student-to-faculty ratio, majors and minors, academic support, research opportunities, and study abroad programs.\n3. Financial Aid & Tuition — including tuition costs, scholarships, FAFSA, need-based aid, payment plans, and eligibility criteria.\n4. Housing & Campus Life — such as on-campus housing, meal plans, residence hall types, roommate selection, campus safety, student clubs, and recreation facilities.\n5. Placements & Job Opportunities — such as placement rates, internship support, average starting salaries, recruiter companies, career services, and co-op programs.\n6. Library & Academic Resources — such as library hours, e-resources, borrowing rules, study rooms, printing services, and academic databases.\n7. Scholarships & Fee Structure — including types of scholarships, application processes, average awards, eligibility, and one-time admission fees.\n\nYour role is to:\n- Answer questions **only using content from the FAQ document** that has been embedded in the vector store.\n- Provide concise, helpful, and informative responses.\n- If a question is unrelated or outside the scope of the embedded document, respond politely that the information is not available.\n\nAlways be clear and factual. Do not fabricate or guess answers. Use the most relevant and close-matching section from the embedded content. Do not provide personal opinions or external web links.\n\nYou are allowed to answer any question related to:\n- University application and admissions\n- Tuition and financial aid details\n- Class sizes and academic policies\n- Campus life, housing, and meal plans\n- Internship, placement, and job support\n- Library services and study resources\n- All types of student scholarships\n\nYou should interpret user queries even if they are not in the exact wording as in the document. Use semantic similarity to retrieve and answer based on closest matching content.\n\nAlways maintain a warm and supportive tone, as you are guiding prospective and current university students.\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        220,
+        780
+      ],
+      "id": "a707fe1e-634c-4447-b17d-21be609a5764",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-1.5-flash",
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        140,
+        1040
+      ],
+      "id": "a87f27b3-89b3-4014-a221-c1f20077886b",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "NM1IPSx63x7C9hRp",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        320,
+        1020
+      ],
+      "id": "31c1dc0d-2968-41ef-9384-c562f5ea8839",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "description": "This vector store contains official university FAQs covering admissions, application process, academic programs, scholarships, financial aid, tuition fees, housing, campus life, placements, student support services, and library resources. It should be used to answer any questions related to university policies, deadlines, class size, eligibility, application requirements, student facilities, and academic procedures."
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolVectorStore",
+      "typeVersion": 1.1,
+      "position": [
+        580,
+        1000
+      ],
+      "id": "02583abd-2df1-4c5e-b4bb-f67e85146c0f",
+      "name": "Answer questions with a vector store"
+    },
+    {
+      "parameters": {
+        "pineconeIndex": {
+          "__rl": true,
+          "value": "n8n-gemini",
+          "mode": "list",
+          "cachedResultName": "n8n-gemini"
+        },
+        "options": {
+          "pineconeNamespace": "__default__"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStorePinecone",
+      "typeVersion": 1.2,
+      "position": [
+        360,
+        1220
+      ],
+      "id": "b26564ca-3a49-470d-960a-3d9b820c1da1",
+      "name": "Pinecone Vector Store1",
+      "credentials": {
+        "pineconeApi": {
+          "id": "60fPgTJWuiis8FAu",
+          "name": "PineconeApi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "models/embedding-001"
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        460,
+        1440
+      ],
+      "id": "f2d06b90-da12-467d-9314-fbae9949f49c",
+      "name": "Embeddings Google Gemini1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "NM1IPSx63x7C9hRp",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-1.5-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        720,
+        1220
+      ],
+      "id": "c6b89182-41e2-4aad-8d95-146957d534d3",
+      "name": "Google Gemini Chat Model1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "NM1IPSx63x7C9hRp",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Google Drive Trigger": {
+      "main": [
+        [
+          {
+            "node": "Google Drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Drive": {
+      "main": [
+        [
+          {
+            "node": "Pinecone Vector Store",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Default Data Loader": {
+      "ai_document": [
+        [
+          {
+            "node": "Pinecone Vector Store",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recursive Character Text Splitter": {
+      "ai_textSplitter": [
+        [
+          {
+            "node": "Default Data Loader",
+            "type": "ai_textSplitter",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings Google Gemini": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Pinecone Vector Store",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Answer questions with a vector store": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pinecone Vector Store1": {
+      "ai_vectorStore": [
+        [
+          {
+            "node": "Answer questions with a vector store",
+            "type": "ai_vectorStore",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings Google Gemini1": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Pinecone Vector Store1",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Answer questions with a vector store",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "eed7d1f8-2857-456f-8565-1060909daf4d",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "dfdb301fb5abf5006fa721251d9179b36699d93d16b214c1b8ee492524ae1d94"
+  },
+  "id": "KFKepZR4ohRuTwrk",
+  "tags": []
+}
